@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "learnsphere-client": "file:.."
+  }
+}

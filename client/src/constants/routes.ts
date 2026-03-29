@@ -1,0 +1,17 @@
+export const ROUTES = {
+  HOME: '/',
+  CATALOG: '/courses',
+  COURSE_DETAIL: (slug = ':slug') => `/courses/${slug}`,
+  PLAYER: (courseId = ':courseId', lessonId = ':lessonId') => `/learn/${courseId}/${lessonId}`,
+  STUDENT_DASHBOARD: '/dashboard/student',
+  CART: '/cart',
+  CHECKOUT: '/checkout',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password/:token',
+  ADMIN_LOGIN: '/admin/login',
+  ADMIN_ROOT: '/admin',
+  INSTRUCTOR_LOGIN: '/instructor/login',
+  INSTRUCTOR_ROOT: '/instructor',
+};

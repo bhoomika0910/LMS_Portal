@@ -1,0 +1,109 @@
+version: "3.9"
+
+services:
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    env_file:
+      - ./client/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      server:
+        condition: service_started
+    networks:
+      - learnsphere_net
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/learnsphere?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - JWT_ACCESS_SECRET=secret123
+      - JWT_REFRESH_SECRET=refresh123
+      - CLIENT_URL=http://localhost:3000
+      - SERVER_URL=http://localhost:5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - learnsphere_net
+
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-password}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - learnsphere_net
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - learnsphere_net
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    depends_on:
+      client:
+        condition: service_started
+      server:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/templates
+      - certs:/etc/letsencrypt
+    environment:
+      - CLIENT_UPSTREAM=client:3000
+      - API_UPSTREAM=server:5000
+      - SERVER_NAME=${SERVER_NAME:-localhost}
+    networks:
+      - learnsphere_net
+
+  certbot:
+    image: certbot/certbot:latest
+    depends_on:
+      nginx:
+        condition: service_started
+    volumes:
+      - certs:/etc/letsencrypt
+      - ./nginx/conf.d:/etc/nginx/templates
+    entrypoint: ["/bin/sh", "-c"]
+    command: >-
+      "trap exit TERM; while :; do certbot renew --noninteractive --agree-tos && sleep 12h; done"
+    networks:
+      - learnsphere_net
+
+volumes:
+  mongo_data:
+  redis_data:
+  certs:
+
+networks:
+  learnsphere_net:
+    driver: bridge
